@@ -1,7 +1,12 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
+  "routes": [
+    { "src": "/api/health", "dest": "/api/health.ts" },
+    { "src": "/api/crawl", "dest": "/api/crawl.ts" },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ],
+  "functions": {
+    "api/crawl.ts": { "maxDuration": 60 }
+  }
 }
