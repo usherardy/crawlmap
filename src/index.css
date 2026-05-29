@@ -1,0 +1,250 @@
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/inter/700.css";
+@import "@fontsource/inter/800.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-base text-text-primary font-sans;
+    margin: 0;
+    padding: 0;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-white/10 rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-white/20;
+  }
+
+  ::selection {
+    background: rgba(99, 102, 241, 0.3);
+    color: #f1f5f9;
+  }
+}
+
+@layer components {
+  /* Glass morphism card */
+  .glass {
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .glass-hover {
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .glass-hover:hover {
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.14);
+  }
+
+  .glass-strong {
+    background: rgba(255, 255, 255, 0.07);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  /* Grid background */
+  .bg-grid {
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+
+  .bg-dots {
+    background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6, #a78bfa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .gradient-text-subtle {
+    background: linear-gradient(135deg, #f1f5f9, #94a3b8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Glow effects */
+  .glow-accent {
+    box-shadow: 0 0 40px rgba(99, 102, 241, 0.25);
+  }
+
+  .glow-accent-sm {
+    box-shadow: 0 0 20px rgba(99, 102, 241, 0.2);
+  }
+
+  .glow-accent-lg {
+    box-shadow: 0 0 80px rgba(99, 102, 241, 0.3);
+  }
+
+  /* Gradient border trick */
+  .border-gradient {
+    position: relative;
+  }
+  .border-gradient::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    background: linear-gradient(135deg, rgba(99,102,241,0.6), rgba(139,92,246,0.6));
+    z-index: -1;
+  }
+
+  /* Section container */
+  .section-container {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  /* Terminal / code block */
+  .terminal {
+    background: #0d0d14;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    @apply rounded-xl font-mono;
+  }
+
+  .terminal-header {
+    @apply flex items-center gap-2 px-4 py-3 border-b border-white/5;
+  }
+
+  .terminal-dot {
+    @apply w-3 h-3 rounded-full;
+  }
+
+  /* Focus ring */
+  .focus-ring {
+    @apply outline-none ring-0;
+  }
+  .focus-ring:focus-visible {
+    @apply ring-2 ring-accent ring-offset-2 ring-offset-base;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .bg-radial-accent {
+    background: radial-gradient(ellipse at center, rgba(99,102,241,0.15) 0%, transparent 70%);
+  }
+
+  .bg-radial-violet {
+    background: radial-gradient(ellipse at center, rgba(139,92,246,0.12) 0%, transparent 70%);
+  }
+}
+
+/* React Flow overrides */
+.react-flow__renderer {
+  background: transparent !important;
+}
+
+.react-flow__background {
+  background: transparent;
+}
+
+.react-flow__minimap {
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 8px !important;
+  background: rgba(10, 10, 15, 0.9) !important;
+  backdrop-filter: blur(12px);
+}
+
+.react-flow__minimap-node {
+  fill: rgba(99, 102, 241, 0.4);
+}
+
+.react-flow__controls {
+  display: none;
+}
+
+.react-flow__attribution {
+  display: none !important;
+}
+
+.react-flow__edge-path {
+  stroke: rgba(255, 255, 255, 0.12);
+  stroke-width: 1.5;
+}
+
+.react-flow__edge.selected .react-flow__edge-path,
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke: #6366f1;
+}
+
+/* ── Design overhaul animations ── */
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes shimmer-sweep {
+  from { background-position: 200% center; }
+  to   { background-position: -200% center; }
+}
+
+@keyframes border-beam-spin {
+  from { --border-beam-angle: 0deg; }
+  to   { --border-beam-angle: 360deg; }
+}
+
+@property --border-beam-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Noise overlay texture */
+.bg-noise {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+}
