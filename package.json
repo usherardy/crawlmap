@@ -2,6 +2,7 @@
   "name": "crawlmap",
   "private": true,
   "version": "0.1.0",
+  "type": "module",
   "scripts": {
     "dev": "concurrently -n client,server -c cyan,yellow \"npm run dev:client\" \"npm run dev:server\"",
     "dev:client": "vite",
