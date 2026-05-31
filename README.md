@@ -4,6 +4,8 @@
 
 CrawlMap discovers every internal page of a website, maps the link structure as an interactive graph, and exports clean data for SEO, development, and AI tools. No account required.
 
+🔗 **Live:** [crawlmap.vercel.app](https://crawlmap.vercel.app)
+
 ![CrawlMap Dashboard](https://raw.githubusercontent.com/usherardy/crawlmap/main/docs/preview.png)
 
 ---
