@@ -3,13 +3,17 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "bin": {
+    "crawlmap": "./cli.js"
+  },
   "scripts": {
     "dev": "concurrently -n client,server -c cyan,yellow \"npm run dev:client\" \"npm run dev:server\"",
     "dev:client": "vite",
     "dev:server": "tsx watch server/index.ts",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "start": "node server/index.js"
+    "start": "node server/index.js",
+    "cli": "tsx cli.ts"
   },
   "dependencies": {
     "@fontsource/inter": "^5.0.0",
@@ -18,6 +22,7 @@
     "cheerio": "^1.2.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "commander": "^14.0.3",
     "concurrently": "^9.2.1",
     "cors": "^2.8.6",
     "dagre": "^0.8.5",
