@@ -1,6 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import axios from 'axios'
-import * as cheerio from 'cheerio'
+import { parse } from 'node-html-parser'
 
 export const config = { maxDuration: 60 }
 
@@ -49,37 +48,57 @@ function normalizeUrl(href: string, base: string): string | null {
   } catch { return null }
 }
 
-function origin(url: string) { return new URL(url).origin }
-function pathname(url: string) { try { return new URL(url).pathname || '/' } catch { return '/' } }
+function getOrigin(url: string) { return new URL(url).origin }
+function getPath(url: string) { try { return new URL(url).pathname || '/' } catch { return '/' } }
+
+async function httpGet(url: string): Promise<{ status: number; text: string; finalUrl: string } | null> {
+  try {
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(10_000),
+      headers: { 'User-Agent': UA, Accept: 'text/html,application/xhtml+xml,*/*' },
+      redirect: 'follow',
+    })
+    const text = await res.text()
+    return { status: res.status, text, finalUrl: res.url }
+  } catch { return null }
+}
+
+async function httpHead(url: string): Promise<number | null> {
+  try {
+    const res = await fetch(url, {
+      method: 'HEAD',
+      signal: AbortSignal.timeout(5_000),
+      headers: { 'User-Agent': UA },
+      redirect: 'follow',
+    })
+    return res.status
+  } catch { return null }
+}
 
 // ── Robots.txt ───────────────────────────────────────────────────────────────
 
 async function fetchRobots(siteOrigin: string): Promise<{ disallowed: string[]; raw: string }> {
-  try {
-    const res = await axios.get<string>(`${siteOrigin}/robots.txt`, {
-      timeout: 5_000, responseType: 'text',
-      headers: { 'User-Agent': UA }, validateStatus: (s) => s === 200,
-    })
-    const disallowed: string[] = []
-    let relevant = false
-    for (const raw of res.data.split('\n')) {
-      const line = raw.trim()
-      if (!line || line.startsWith('#')) continue
-      if (/^user-agent:/i.test(line)) { relevant = /\*/i.test(line.split(':')[1]!); continue }
-      if (relevant && /^disallow:/i.test(line)) {
-        const p = line.replace(/^disallow:\s*/i, '').trim()
-        if (p) disallowed.push(p)
-      }
+  const result = await httpGet(`${siteOrigin}/robots.txt`)
+  if (!result || result.status !== 200) return { disallowed: [], raw: '' }
+  const disallowed: string[] = []
+  let relevant = false
+  for (const line of result.text.split('\n')) {
+    const t = line.trim()
+    if (!t || t.startsWith('#')) continue
+    if (/^user-agent:/i.test(t)) { relevant = /\*/i.test(t.split(':')[1]!); continue }
+    if (relevant && /^disallow:/i.test(t)) {
+      const p = t.replace(/^disallow:\s*/i, '').trim()
+      if (p) disallowed.push(p)
     }
-    return { disallowed, raw: res.data }
-  } catch { return { disallowed: [], raw: '' } }
+  }
+  return { disallowed, raw: result.text }
 }
 
-function isDisallowed(path: string, rules: { disallowed: string[] }) {
-  return rules.disallowed.some((d) => d === '/' || path.startsWith(d))
+function isDisallowed(path: string, disallowed: string[]) {
+  return disallowed.some((d) => d === '/' || path.startsWith(d))
 }
 
-// ── Sitemap discovery ────────────────────────────────────────────────────────
+// ── Sitemap ───────────────────────────────────────────────────────────────────
 
 async function fetchSitemapUrls(siteOrigin: string, robotsRaw: string): Promise<string[]> {
   const candidates: string[] = []
@@ -87,52 +106,44 @@ async function fetchSitemapUrls(siteOrigin: string, robotsRaw: string): Promise<
     const m = line.match(/^sitemap:\s*(.+)/i)
     if (m) candidates.push(m[1]!.trim())
   }
-  candidates.push(
-    `${siteOrigin}/sitemap.xml`,
-    `${siteOrigin}/sitemap_index.xml`,
-    `${siteOrigin}/sitemap/sitemap.xml`,
-  )
+  candidates.push(`${siteOrigin}/sitemap.xml`, `${siteOrigin}/sitemap_index.xml`)
 
   const urls: string[] = []
   const seen = new Set<string>()
 
-  async function parse(sitemapUrl: string): Promise<void> {
+  async function parseSitemap(sitemapUrl: string): Promise<void> {
     if (seen.has(sitemapUrl)) return
     seen.add(sitemapUrl)
-    try {
-      const res = await axios.get<string>(sitemapUrl, {
-        timeout: 8_000, responseType: 'text',
-        headers: { 'User-Agent': UA }, validateStatus: (s) => s === 200,
-      })
-      const xml = res.data
-      for (const block of xml.match(/<sitemap>[\s\S]*?<\/sitemap>/g) ?? []) {
-        const loc = block.match(/<loc>(.*?)<\/loc>/)?.[1]?.trim()
-        if (loc) await parse(loc)
+    const result = await httpGet(sitemapUrl)
+    if (!result || result.status !== 200) return
+    const xml = result.text
+    for (const block of xml.match(/<sitemap>[\s\S]*?<\/sitemap>/g) ?? []) {
+      const loc = block.match(/<loc>(.*?)<\/loc>/)?.[1]?.trim()
+      if (loc) await parseSitemap(loc)
+    }
+    for (const block of xml.match(/<url>[\s\S]*?<\/url>/g) ?? []) {
+      const loc = block.match(/<loc>(.*?)<\/loc>/)?.[1]?.trim()
+      if (loc) {
+        const n = normalizeUrl(loc, siteOrigin)
+        if (n && getOrigin(n) === siteOrigin) urls.push(n)
       }
-      for (const block of xml.match(/<url>[\s\S]*?<\/url>/g) ?? []) {
-        const loc = block.match(/<loc>(.*?)<\/loc>/)?.[1]?.trim()
-        if (loc) {
-          const n = normalizeUrl(loc, siteOrigin)
-          if (n && origin(n) === siteOrigin) urls.push(n)
-        }
-      }
-    } catch { /* skip */ }
+    }
   }
 
   for (const c of candidates) {
-    await parse(c)
+    await parseSitemap(c)
     if (urls.length > 0) break
   }
   return [...new Set(urls)]
 }
 
-// ── Crawler ──────────────────────────────────────────────────────────────────
+// ── Crawler ───────────────────────────────────────────────────────────────────
 
 async function runCrawl(options: CrawlOptions, onPage: OnPageCallback, isAborted: IsAbortedFn) {
   const startUrl = normalizeUrl(options.url, options.url)
   if (!startUrl) throw new Error('Invalid start URL')
 
-  const siteOrigin = origin(startUrl)
+  const siteOrigin = getOrigin(startUrl)
   const { disallowed: robotsRules, raw: robotsRaw } = options.respectRobots
     ? await fetchRobots(siteOrigin)
     : { disallowed: [], raw: '' }
@@ -159,39 +170,31 @@ async function runCrawl(options: CrawlOptions, onPage: OnPageCallback, isAborted
     if (visited.has(url)) continue
     visited.add(url)
 
-    if (isDisallowed(pathname(url), { disallowed: robotsRules })) continue
+    if (isDisallowed(getPath(url), robotsRules)) continue
 
-    let statusCode: number | null = null
-    let html = ''
-    let finalUrl = url
+    const result = await httpGet(url)
+    if (!result) continue
 
-    try {
-      const res = await axios.get<string>(url, {
-        timeout: 10_000, responseType: 'text', maxRedirects: 5,
-        headers: { 'User-Agent': UA, Accept: 'text/html,application/xhtml+xml' },
-        validateStatus: () => true,
-      })
-      statusCode = res.status
-      html = typeof res.data === 'string' ? res.data : ''
-      finalUrl = (res.request as { res?: { responseUrl?: string } })?.res?.responseUrl ?? url
-    } catch { continue }
+    const { status: statusCode, text: html, finalUrl } = result
 
-    const $ = cheerio.load(html)
-    const title = $('title').first().text().trim() || ''
-    const canonicalHref = $('link[rel="canonical"]').attr('href') ?? null
-    const canonical = canonicalHref ? normalizeUrl(canonicalHref, finalUrl) : null
-
+    let title = ''
+    let canonical: string | null = null
     const internalLinks: string[] = []
     const externalLinks: string[] = []
 
-    if (statusCode !== null && statusCode < 400) {
-      $('a[href]').each((_, el) => {
-        const href = $(el).attr('href')
+    if (statusCode < 400) {
+      const root = parse(html)
+      title = root.querySelector('title')?.text?.trim() || ''
+      const canonHref = root.querySelector('link[rel="canonical"]')?.getAttribute('href') ?? null
+      canonical = canonHref ? normalizeUrl(canonHref, finalUrl) : null
+
+      root.querySelectorAll('a[href]').forEach((el) => {
+        const href = el.getAttribute('href')
         if (!href || /^(mailto:|tel:|javascript:|data:)/i.test(href)) return
         const resolved = normalizeUrl(href, finalUrl)
         if (!resolved) return
         try {
-          if (origin(resolved) === siteOrigin) {
+          if (getOrigin(resolved) === siteOrigin) {
             if (!visited.has(resolved) && !internalLinks.includes(resolved)) internalLinks.push(resolved)
           } else {
             if (!externalLinks.includes(resolved)) {
@@ -212,7 +215,7 @@ async function runCrawl(options: CrawlOptions, onPage: OnPageCallback, isAborted
     }
 
     onPage({
-      id: url, url, path: pathname(url), title, depth, statusCode,
+      id: url, url, path: getPath(url), title, depth, statusCode,
       childCount: internalLinks.length, parentId,
       internalLinks, externalLinks, canonical, isExternal: false,
     })
@@ -223,22 +226,14 @@ async function runCrawl(options: CrawlOptions, onPage: OnPageCallback, isAborted
     }
   }
 
-  // External link status check
+  // External link status check (after main BFS)
   if (options.includeExternal && !isAborted()) {
     for (const extUrl of [...externalQueue].slice(0, 50)) {
       if (isAborted()) break
-      let statusCode: number | null = null
-      try {
-        const res = await axios.head(extUrl, {
-          timeout: 5_000, maxRedirects: 3,
-          headers: { 'User-Agent': UA }, validateStatus: () => true,
-        })
-        statusCode = res.status
-      } catch { statusCode = null }
-
+      const statusCode = await httpHead(extUrl)
       onPage({
-        id: extUrl, url: extUrl, path: pathname(extUrl),
-        title: origin(extUrl).replace(/^https?:\/\//, ''),
+        id: extUrl, url: extUrl, path: getPath(extUrl),
+        title: getOrigin(extUrl).replace(/^https?:\/\//, ''),
         depth: 1, statusCode, childCount: 0,
         parentId: [...visited][0] ?? null,
         internalLinks: [], externalLinks: [], canonical: null, isExternal: true,
@@ -248,7 +243,7 @@ async function runCrawl(options: CrawlOptions, onPage: OnPageCallback, isAborted
   }
 }
 
-// ── Handler ──────────────────────────────────────────────────────────────────
+// ── Handler ───────────────────────────────────────────────────────────────────
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const {
