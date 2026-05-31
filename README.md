@@ -56,6 +56,26 @@ Opens at **http://localhost:5173** — the crawler server starts automatically o
 
 ---
 
+## CLI usage
+
+Run a crawl directly from your terminal — no browser needed:
+
+```bash
+npm run cli -- https://example.com --max-pages 100 --max-depth 3
+```
+
+| Option | Default | Description |
+|---|---|---|
+| `--max-pages <n>` | 100 | Maximum pages to crawl |
+| `--max-depth <n>` | 3 | Maximum crawl depth |
+| `--no-robots` | — | Ignore robots.txt directives |
+| `--external` | — | Include and status-check external links |
+| `--output <dir>` | `.` | Directory to write output files |
+
+Writes 5 files to the output directory: `links.txt`, `links.csv`, `sitemap.xml`, `site-structure.json`, and `ai-context.md`.
+
+---
+
 ## How it works
 
 ```
@@ -88,10 +108,10 @@ Browser → EventSource('/api/crawl?url=...')
 - ReactFlow (`@xyflow/react`)
 
 **Backend**
-- Express 5
-- Axios (HTTP client)
-- Cheerio (HTML parsing)
+- Express 5 (local dev server) · Vercel serverless functions (production)
+- Local: Axios + Cheerio · Production: native `fetch` + `node-html-parser`
 - Server-Sent Events (real-time streaming)
+- Commander (CLI)
 
 ---
 
@@ -102,6 +122,7 @@ Browser → EventSource('/api/crawl?url=...')
 | `npm run dev` | Start frontend + backend together |
 | `npm run dev:client` | Frontend only (Vite, port 5173) |
 | `npm run dev:server` | Backend only (Express, port 3001) |
+| `npm run cli -- <url>` | Run a crawl from the terminal and export files |
 | `npm run build` | Production build |
 
 ---
